@@ -11,13 +11,17 @@ const botOptions = {
 const bot = bedrock.createClient(botOptions);
 
 bot.on('spawn', () => {
-    console.log(`${botOptions.username} جاهز الآن لبيع وشراء كل شيء في اللعبة!`);
+    console.log(`${botOptions.username} جاهز الآن لبيع وشراء كل شيء وتخطي الليل!`);
     
-    // 💡 ذكاء اصطناعي: تغيير قانون النوم تلقائياً لتخطي الليل دون الحاجة لنوم البوت
+    // تغيير قانون النوم تلقائياً لتخطي الليل دون الحاجة لنوم البوت
     bot.write('command_request', {
         command: `gamerule playersSleepingPercentage 0`,
         internal: false, version: 1,
-        origin: { type: 0, uuid: '', request_id: '' }
+        origin: { 
+            type: 'player', 
+            uuid: '00000000-0000-0000-0000-000000000000', 
+            request_id: '0' 
+        }
     });
 });
 
@@ -32,15 +36,15 @@ bot.on('text', (packet) => {
         bot.write('command_request', {
             command: `time set day`,
             internal: false, version: 1,
-            origin: { type: 0, uuid: '', request_id: '' }
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('text', {
             type: 'chat', needs_translation: false, source_name: botOptions.username,
-            message: `☀️ أبشر يا ${player}! قمت بتخطي الليل وتحويل الوقت إلى النهار. تصبحون على خير!`,
+            message: `☀️ أبشر يا ${player}! قمت بتخطي الليل وتحويل الوقت إلى النهار.`,
             xuid: '', platform_chat_id: ''
         });
-        return; // إنهاء الحدث هنا
+        return;
     }
 
     // 1. استعراض قوائم الأسعار عند كتابة (المتجر) أو (!shop)
@@ -76,13 +80,13 @@ bot.on('text', (packet) => {
         bot.write('command_request', {
             command: `give ${player} ${itemName} ${amount}`,
             internal: false, version: 1,
-            origin: { type: 0, uuid: '', request_id: '' }
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('command_request', {
             command: `clear ${player} paper 0 ${amount}`,
             internal: false, version: 1,
-            origin: { type: 0, uuid: '', request_id: '' }
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
     }
 
@@ -97,13 +101,13 @@ bot.on('text', (packet) => {
         bot.write('command_request', {
             command: `clear ${player} ${itemName} 0 ${amount}`,
             internal: false, version: 1,
-            origin: { type: 0, uuid: '', request_id: '' }
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('command_request', {
             command: `give ${player} paper ${amount} 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`,
             internal: false, version: 1,
-            origin: { type: 0, uuid: '', request_id: '' }
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('text', {
