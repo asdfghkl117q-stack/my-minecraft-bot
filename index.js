@@ -11,18 +11,21 @@ const botOptions = {
 const bot = bedrock.createClient(botOptions);
 
 bot.on('spawn', () => {
-    console.log(`${botOptions.username} جاهز الآن لبيع وشراء كل شيء وتخطي الليل!`);
+    console.log(`✅ ${botOptions.username} دخل السيرفر ورسبن بنجاح!`);
     
-    // تغيير قانون النوم تلقائياً لتخطي الليل دون الحاجة لنوم البوت
-    bot.write('command_request', {
-        command: `gamerule playersSleepingPercentage 0`,
-        internal: false, version: 1,
-        origin: { 
-            type: 'player', 
-            uuid: '00000000-0000-0000-0000-000000000000', 
-            request_id: '0' 
+    // ⏳ مؤقت أمان: ننتظر 5 ثوانٍ بعد الدخول قبل تفعيل أمر النوم لمنع الكراش
+    setTimeout(() => {
+        console.log("⚙️ جاري تفعيل قانون النوم التلقائي في السيرفر...");
+        try {
+            bot.write('command_request', {
+                command: `gamerule playersSleepingPercentage 0`,
+                internal: false, version: 1,
+                origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+            });
+        } catch (e) {
+            console.log("⚠️ فشل إرسال أمر النوم المبدئي: " + e.message);
         }
-    });
+    }, 5000);
 });
 
 bot.on('text', (packet) => {
@@ -118,7 +121,13 @@ bot.on('text', (packet) => {
     }
 });
 
+// صيد الأخطاء البرمجية وطباعتها لحمايته من الكراش الصامت
+bot.on('error', (err) => {
+    console.log(`❌ حدث خطأ في البوت: ${err.message}`);
+});
+
 // إعادة الاتصال التلقائي
 bot.on('disconnect', (packet) => {
+    console.log(`⚠️ انقطع الاتصال بسبب: ${packet.reason}. إعادة تشغيل...`);
     setTimeout(() => { process.exit(1); }, 10000);
 });
