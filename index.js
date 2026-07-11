@@ -1,23 +1,22 @@
-const http = require('http'); // استدعاء مكتبة الويب أولاً
+const http = require('http');
+const https = require('https'); // استدعاء مكتبة طلبات الويب الآمنة للاتصال بـ Gemini
 
-// 1. تشغيل سيرفر الويب فوراً في أول السطر ليتعرف عليه Render بسرعة فائقة
+// 1. تشغيل سيرفر الويب لـ Render ليبقى البوت يعمل 24/7 دون توقف
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('ServerKeeper_Bot is alive and healthy!');
+    res.end('ServerKeeper Bot connected to Gemini is Online!');
 });
 
-// تحديد 0.0.0.0 بشكل صريح وهو ما تبحث عنه منصة Render دائماً
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Render] Dummy HTTP server is listening on port ${PORT} (0.0.0.0)`);
+    console.log(`[Render] Server listening on port ${PORT}`);
 });
 
 // -----------------------------------------------------------------
 
-// 2. تشغيل كود البوت والاتصال بماين كرافت
+// 2. إعدادات اتصال ماين كرافت
 const bedrock = require('bedrock-protocol');
 
-// إعدادات الاتصال
 const botOptions = {
     host: 'gold.magmanode.com',
     port: 26354,
@@ -26,33 +25,98 @@ const botOptions = {
     skipPing: true
 };
 
+// تم دمج مفتاح الـ API الخاص بك هنا بنجاح!
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6KGGeWaSLcaYz0hhita5fnjfyPqbehzPsjQFkzvWOs9Qg";
+
 const bot = bedrock.createClient(botOptions);
 
 bot.on('spawn', () => {
-    console.log(`[Status] ${botOptions.username} joined the server.`);
+    console.log(`[Status] ${botOptions.username} connected and ready for chat!`);
 });
 
-// معالجة الأخطاء وحالات الطرد لمنع انهيار السكربت
-bot.on('error', (err) => {
-    console.error(`[Error] Connection error:`, err.message);
-});
+// دالة تفاعل ذكاء Gemini الاصطناعي
+function askGemini(userMessage, playerName, callback) {
+    // توجيهات خفية ليتصرف البوت كصديقك المقرب ويرد باختصار ليتفادى الطرد
+    const systemPrompt = `أنت الآن تلعب ماين كرافت مع صديقك المفضل الذي يدعى ${playerName}. 
+اسمك في اللعبة هو ${botOptions.username}. 
+تحدث معه بأسلوب صديق حقيقي، مرح، متعاون، وودود جداً. 
+ملاحظة هامة جداً: يجب أن يكون ردك قصيراً للغاية (لا يتجاوز سطرين أو 100 حرف) لكي لا يطردك السيرفر بسبب طول الرسائل وبسرعة. 
+الرسالة التي أرسلها لك صديقك هي: "${userMessage}"`;
 
-bot.on('kick', (reason) => {
-    console.warn(`[Kick] Bot was kicked from the server. Reason:`, reason);
-});
+    const payload = JSON.stringify({
+        contents: [{
+            parts: [{ text: systemPrompt }]
+        }]
+    });
 
-bot.on('close', () => {
-    console.log(`[Status] Connection closed.`);
-});
+    const options = {
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+        }
+    };
+
+    const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+            try {
+                const parsed = JSON.parse(data);
+                if (parsed.candidates && parsed.candidates[0].content.parts[0].text) {
+                    let reply = parsed.candidates[0].content.parts[0].text.trim();
+                    callback(reply);
+                } else {
+                    callback("أسمعك يا صديقي، لكني أفكر في شيء آخر الآن! 🤔");
+                }
+            } catch (e) {
+                console.error("Gemini JSON Parse Error:", e.message);
+                callback("واجهت تشويشاً بسيطاً في عقلي الإلكتروني! 😵‍💫");
+            }
+        });
+    });
+
+    req.on('error', (e) => {
+        console.error("Gemini Request Error:", e.message);
+        callback("يبدو أن الاتصال بيننا انقطع للحظة! 🌐");
+    });
+
+    req.write(payload);
+    req.end();
+}
+
+// معالجة الأخطاء لضمان عدم انهيار البوت
+bot.on('error', (err) => console.error(`[Error]`, err.message));
+bot.on('kick', (reason) => console.warn(`[Kick] Reason:`, reason));
+bot.on('close', () => console.log(`[Status] Connection closed.`));
 
 bot.on('text', (packet) => {
     try {
         if (!packet.source_name || packet.source_name === botOptions.username) return;
 
-        const message = packet.message.toLowerCase().trim();
+        const message = packet.message.trim();
         const player = packet.source_name;
 
-        // تنفيذ الأوامر بشكل مبسط ومستقر
+        // دالة إرسال الشات مع حماية السبام (Anti-Spam)
+        const sendChat = (textMsg) => {
+            const lines = textMsg.split('\n').filter(line => line.trim().length > 0);
+            lines.forEach((line, index) => {
+                setTimeout(() => {
+                    bot.write('text', {
+                        type: 'chat',
+                        needs_translation: false,
+                        source_name: '',
+                        xuid: '',
+                        platform_chat_id: '',
+                        message: line
+                    });
+                }, index * 600); // تأخير بسيط بين الأسطر لمنع الطرد
+            });
+        };
+
+        // دالة تنفيذ الأوامر داخل السيرفر لطلب المساعدة في البناء
         const runCmd = (cmdText) => {
             bot.write('command_request', {
                 command: cmdText,
@@ -66,38 +130,40 @@ bot.on('text', (packet) => {
             });
         };
 
-        // إرسال الشات مع تأخير زمني (Delay) لمنع الـ Kick بسبب الحماية من السبام
-        const sendChat = (textMsg) => {
-            const lines = textMsg.split('\n').filter(line => line.trim().length > 0);
+        // 🌟 طريقة التحدث مع البوت: ابدأ رسالتك بـ "يا بوت" أو "يا روبوت" أو "bot"
+        if (message.toLowerCase().startsWith('يا بوت') || message.toLowerCase().startsWith('bot') || message.toLowerCase().startsWith('يا روبوت')) {
+            // استخلاص السؤال الموجه للبوت
+            const cleanMessage = message.replace(/^(يا بوت|bot|يا روبوت)/i, '').trim();
             
-            lines.forEach((line, index) => {
-                setTimeout(() => {
-                    bot.write('text', {
-                        type: 'chat',
-                        needs_translation: false,
-                        source_name: '', // يجب أن تترك فارغة ليتعرف عليها السيرفر بشكل طبيعي
-                        xuid: '',
-                        platform_chat_id: '',
-                        message: line
-                    });
-                }, index * 500); // تأخير نصف ثانية بين كل سطر وسطر
-            });
-        };
+            if (cleanMessage.length === 0) {
+                sendChat(`نعم يا صديقي ${player}؟ أنا أسمعك، تفضل اسألني أي شيء! 😊`);
+                return;
+            }
 
-        // 1. القوائم
-        if (message === 'الاسرار' || message === 'كلمات السر' || message === '!cheats') {
-            sendChat(`=== قائمة كلمات السر ===\n` +
-                     `!سر_القوة (وضع الخلود)\n` +
-                     `!سر_الطيران (طور الكرييتف)\n` +
-                     `!سر_النجاة (طور السرفايفل)\n` +
-                     `!سر_الخبرة (ليفل سريع)\n` +
-                     `!سر_الوحوش (قتل الوحوش)\n` +
-                     `!سر_الفلوس (عملات المتجر)\n` +
-                     `!سر_الاختفاء\n` +
-                     `!سر_العتاد\n` +
-                     `!day (نهار)`);
+            // إرسال السؤال إلى ذكاء Gemini الاصطناعي للحصول على رد ذكي
+            askGemini(cleanMessage, player, (geminiReply) => {
+                sendChat(geminiReply);
+            });
             return;
         }
+
+        // الأوامر المساعدة السريعة (تنفذ مباشرة لتكون سريعة وبدون ذكاء اصطناعي)
+        if (message === 'ابني' || message === 'ابني بيت') {
+            sendChat(`سأقوم ببناء بيت خشبي لك الآن يا صديقي! 🔨🏠`);
+            setTimeout(() => runCmd(`execute at "${player}" run fill ~2 ~-1 ~2 ~7 ~-1 ~7 planks`), 1000);
+            setTimeout(() => runCmd(`execute at "${player}" run fill ~2 ~ ~2 ~7 ~3 ~7 planks 0 outline`), 2500);
+            setTimeout(() => runCmd(`execute at "${player}" run fill ~2 ~4 ~2 ~7 ~4 ~7 wooden_slab`), 4000);
+            setTimeout(() => {
+                runCmd(`execute at "${player}" run setblock ~4 ~ ~2 air`);
+                runCmd(`execute at "${player}" run setblock ~4 ~ ~2 wooden_door`);
+                sendChat(`تم البناء! أتمنى أن يعجبك تصميمي! 😉`);
+            }, 5500);
+        }
+
+    } catch (err) {
+        console.log("Error inside text event: " + err.message);
+    }
+});
 
         if (message === '!shop' || message === 'المتجر') {
             sendChat(`=== متجر السيرفر ===\n` +
