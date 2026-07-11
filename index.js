@@ -21,7 +21,7 @@ bot.on('spawn', () => {
             bot.write('command_request', {
                 command: `gamerule playersSleepingPercentage 0`,
                 internal: false, 
-                version: '1', // ✨ تم تصحيحها إلى نص
+                version: '1', 
                 origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
             });
         } catch (e) {
@@ -41,7 +41,7 @@ bot.on('text', (packet) => {
         bot.write('command_request', {
             command: `time set day`,
             internal: false, 
-            version: '1', // ✨ تم تصحيحها إلى نص
+            version: '1', 
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
@@ -86,14 +86,14 @@ bot.on('text', (packet) => {
         bot.write('command_request', {
             command: `give ${player} ${itemName} ${amount}`,
             internal: false, 
-            version: '1', // ✨ تم تصحيحها إلى نص
+            version: '1', 
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('command_request', {
             command: `clear ${player} paper 0 ${amount}`,
             internal: false, 
-            version: '1', // ✨ تم تصحيحها إلى نص
+            version: '1', 
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
     }
@@ -109,14 +109,14 @@ bot.on('text', (packet) => {
         bot.write('command_request', {
             command: `clear ${player} ${itemName} 0 ${amount}`,
             internal: false, 
-            version: '1', // ✨ تم تصحيحها إلى نص
+            version: '1', 
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('command_request', {
             command: `give ${player} paper ${amount} 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`,
             internal: false, 
-            version: '1', // ✨ تم تصحيحها إلى نص
+            version: '1', 
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
@@ -129,39 +129,6 @@ bot.on('text', (packet) => {
 });
 
 // صيد الأخطاء البرمجية وطباعتها لحمايته
-bot.on('error', (err) => {
-    console.log(`❌ حدث خطأ في البوت: ${err.message}`);
-});
-
-// إعادة الاتصال التلقائي
-bot.on('disconnect', (packet) => {
-    console.log(`⚠️ انقطع الاتصال بسبب: ${packet.reason}. إعادة تشغيل...`);
-    setTimeout(() => { process.exit(1); }, 10000);
-});
-
-        if (!itemName) return;
-
-        bot.write('command_request', {
-            command: `clear ${player} ${itemName} 0 ${amount}`,
-            internal: false, version: 1,
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
-        });
-
-        bot.write('command_request', {
-            command: `give ${player} paper ${amount} 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`,
-            internal: false, version: 1,
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
-        });
-
-        bot.write('text', {
-            type: 'chat', needs_translation: false, source_name: botOptions.username,
-            message: `💰 تمت العملية يا ${player}! بعت ${amount} من ${itemName} واستلمت عملاتك.`,
-            xuid: '', platform_chat_id: ''
-        });
-    }
-});
-
-// صيد الأخطاء البرمجية وطباعتها لحمايته من الكراش الصامت
 bot.on('error', (err) => {
     console.log(`❌ حدث خطأ في البوت: ${err.message}`);
 });
