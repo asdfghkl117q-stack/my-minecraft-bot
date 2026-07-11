@@ -6,28 +6,13 @@ const botOptions = {
     port: 26354,
     username: 'ServerKeeper_Bot',
     offline: true,
-    skipPing: true // تخطي الفحص للدخول المباشر السريع
+    skipPing: true // تخطي الفحص للدخول المباشر السريع ومنع الـ Timeout
 };
 
 const bot = bedrock.createClient(botOptions);
 
 bot.on('spawn', () => {
-    console.log(`✅ ${botOptions.username} دخل السيرفر ورسبن بنجاح!`);
-    
-    // مؤقت أمان ننتظر 5 ثوانٍ قبل تفعيل أمر النوم
-    setTimeout(() => {
-        console.log("⚙️ جاري تفعيل قانون النوم التلقائي في السيرفر...");
-        try {
-            bot.write('command_request', {
-                command: `gamerule playersSleepingPercentage 0`,
-                internal: false, 
-                version: '1', 
-                origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
-            });
-        } catch (e) {
-            console.log("⚠️ فشل إرسال أمر النوم المبدئي: " + e.message);
-        }
-    }, 5000);
+    console.log(`✅ ${botOptions.username} دخل السيرفر ورسبن بنجاح! المتجر الشامل جاهز الآن.`);
 });
 
 bot.on('text', (packet) => {
@@ -35,23 +20,6 @@ bot.on('text', (packet) => {
 
     const message = packet.message.toLowerCase().trim();
     const player = packet.source_name;
-
-    // 💤 ميزة تخطي الليل الذكية عبر الشات
-    if (message === 'نام' || message === '!sleep' || message === 'تخطي') {
-        bot.write('command_request', {
-            command: `time set day`,
-            internal: false, 
-            version: '1', 
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
-        });
-
-        bot.write('text', {
-            type: 'chat', needs_translation: false, source_name: botOptions.username,
-            message: `☀️ أبشر يا ${player}! قمت بتخطي الليل وتحويل الوقت إلى النهار.`,
-            xuid: '', platform_chat_id: ''
-        });
-        return;
-    }
 
     // 1. استعراض قوائم الأسعار عند كتابة (المتجر) أو (!shop)
     if (message === '!shop' || message === 'المتجر') {
@@ -83,18 +51,30 @@ bot.on('text', (packet) => {
             xuid: '', platform_chat_id: ''
         });
 
+        // إعطاء اللاعب الغرض
         bot.write('command_request', {
             command: `give ${player} ${itemName} ${amount}`,
             internal: false, 
             version: '1', 
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+            origin: { 
+                type: 'player', 
+                uuid: '00000000-0000-0000-0000-000000000000', 
+                request_id: '0',
+                player_entity_id: [0, 0] // حقل الأمان لمنع كراش القراءة الذكية
+            }
         });
 
+        // سحب العملة (الورقة) من اللاعب
         bot.write('command_request', {
             command: `clear ${player} paper 0 ${amount}`,
             internal: false, 
             version: '1', 
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+            origin: { 
+                type: 'player', 
+                uuid: '00000000-0000-0000-0000-000000000000', 
+                request_id: '0',
+                player_entity_id: [0, 0]
+            }
         });
     }
 
@@ -106,18 +86,30 @@ bot.on('text', (packet) => {
 
         if (!itemName) return;
 
+        // سحب الغرض من حقيبة اللاعب
         bot.write('command_request', {
             command: `clear ${player} ${itemName} 0 ${amount}`,
             internal: false, 
             version: '1', 
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+            origin: { 
+                type: 'player', 
+                uuid: '00000000-0000-0000-0000-000000000000', 
+                request_id: '0',
+                player_entity_id: [0, 0]
+            }
         });
 
+        // إعطائه العملة المخصصة (الورقة الخضراء)
         bot.write('command_request', {
             command: `give ${player} paper ${amount} 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`,
             internal: false, 
             version: '1', 
-            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+            origin: { 
+                type: 'player', 
+                uuid: '00000000-0000-0000-0000-000000000000', 
+                request_id: '0',
+                player_entity_id: [0, 0]
+            }
         });
 
         bot.write('text', {
@@ -128,13 +120,13 @@ bot.on('text', (packet) => {
     }
 });
 
-// صيد الأخطاء البرمجية وطباعتها لحمايته
+// نظام حماية وصيد الأخطاء البرمجية من الكراش
 bot.on('error', (err) => {
     console.log(`❌ حدث خطأ في البوت: ${err.message}`);
 });
 
-// إعادة الاتصال التلقائي
+// إعادة الاتصال التلقائي الذكي عند الفصل
 bot.on('disconnect', (packet) => {
-    console.log(`⚠️ انقطع الاتصال بسبب: ${packet.reason}. إعادة تشغيل...`);
+    console.log(`⚠️ انقطع الاتصال بسبب: ${packet.reason}. جاري إعادة التشغيل التلقائي...`);
     setTimeout(() => { process.exit(1); }, 10000);
 });
