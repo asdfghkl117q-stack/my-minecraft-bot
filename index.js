@@ -14,7 +14,7 @@ server.listen(PORT, '0.0.0.0', () => {
 
 // -----------------------------------------------------------------
 
-// 2. الآن نقوم بتشغيل كود البوت والاتصال بماين كرافت
+// 2. تشغيل كود البوت والاتصال بماين كرافت
 const bedrock = require('bedrock-protocol');
 
 // إعدادات الاتصال
@@ -27,14 +27,6 @@ const botOptions = {
 };
 
 const bot = bedrock.createClient(botOptions);
-
-// متغير لحفظ الـ runtime_entity_id الخاص بالبوت لمنع طرده عند تنفيذ الأوامر
-let runtimeEntityId = 0;
-
-bot.on('start_game', (packet) => {
-    runtimeEntityId = packet.runtime_entity_id;
-    console.log(`[Status] Game started. Bot Entity ID: ${runtimeEntityId}`);
-});
 
 bot.on('spawn', () => {
     console.log(`[Status] ${botOptions.username} joined the server.`);
@@ -60,7 +52,7 @@ bot.on('text', (packet) => {
         const message = packet.message.toLowerCase().trim();
         const player = packet.source_name;
 
-        // تنفيذ الأوامر بشكل متوافق مع بروتوكول ماين كرافت لتفادي الطرد
+        // تنفيذ الأوامر بشكل مبسط ومستقر
         const runCmd = (cmdText) => {
             bot.write('command_request', {
                 command: cmdText,
@@ -69,26 +61,26 @@ bot.on('text', (packet) => {
                 origin: { 
                     type: 'player', 
                     uuid: bot.uuid || '00000000-0000-0000-0000-000000000000', 
-                    request_id: '1',
-                    player_entity_id: runtimeEntityId 
+                    request_id: '1'
                 }
             });
         };
 
-        // إرسال رسائل الشات مع تعيين اسم مرسل صحيح لتفادي حظر البوت
+        // إرسال الشات مع تأخير زمني (Delay) لمنع الـ Kick بسبب الحماية من السبام
         const sendChat = (textMsg) => {
-            const lines = textMsg.split('\n');
-            lines.forEach((line) => {
-                if (line.trim().length > 0) {
+            const lines = textMsg.split('\n').filter(line => line.trim().length > 0);
+            
+            lines.forEach((line, index) => {
+                setTimeout(() => {
                     bot.write('text', {
                         type: 'chat',
                         needs_translation: false,
-                        source_name: botOptions.username,
+                        source_name: '', // يجب أن تترك فارغة ليتعرف عليها السيرفر بشكل طبيعي
                         xuid: '',
                         platform_chat_id: '',
                         message: line
                     });
-                }
+                }, index * 500); // تأخير نصف ثانية بين كل سطر وسطر
             });
         };
 
@@ -114,161 +106,6 @@ bot.on('text', (packet) => {
                      `اكتب (كلمات السر) لعرض الأوامر!`);
             return;
         }
-
-        // 2. الأوامر
-        if (message === '!day') {
-            runCmd(`time set day`);
-            sendChat(`تم تحويل الوقت الى النهار يا ${player}`);
-        }
-
-        if (message === '!سر_القوة' || message === '!god') {
-            runCmd(`effect ${player} regeneration 99999 5 true`);
-            runCmd(`effect ${player} resistance 99999 5 true`);
-            sendChat(`تم تفعيل وضع الخلود للاعب: ${player}`);
-        }
-
-        if (message === '!سر_الطيران' || message === '!fly') {
-            runCmd(`gamemode creative ${player}`);
-            sendChat(`تم تحويل طور اللاعب ${player} الى الابداع`);
-        }
-
-        if (message === '!سر_النجاة' || message === '!survival') {
-            runCmd(`gamemode survival ${player}`);
-            sendChat(`تم تحويل اللاعب ${player} الى السرفايفل`);
-        }
-
-        if (message === '!سر_الخبرة' || message === '!xp') {
-            runCmd(`xp 1000l ${player}`);
-            sendChat(`تم منح ${player} ليفل خبرة`);
-        }
-
-        if (message === '!سر_الوحوش' || message === '!killall') {
-            runCmd(`kill @e[type=!player,type=!item,type=!npc]`);
-            sendChat(`تم القضاء على جميع الوحوش`);
-        }
-
-        if (message === '!سر_الفلوس' || message === '!money') {
-            runCmd(`give ${player} paper 64`);
-            sendChat(`استلمت 64 ورقة نقدية يا ${player}`);
-        }
-
-        if (message === '!سر_الاختفاء' || message === '!invisible') {
-            runCmd(`effect ${player} invisibility 99999 1 true`);
-            sendChat(`أصبحت خفياً يا ${player}`);
-        }
-
-        if (message === '!سر_العتاد' || message === '!kit') {
-            runCmd(`give ${player} diamond_sword 1`);
-            runCmd(`give ${player} diamond_pickaxe 1`);
-            sendChat(`تم تسليم العتاد للاعب ${player}`);
-        }
-
-        // التجارة
-        if (message.startsWith('!شراء ')) {
-            const parts = message.split(' ');
-            const itemName = parts[1];
-            const amount = parseInt(parts[2]) || 1;
-            runCmd(`give ${player} ${itemName} ${amount}`);
-            sendChat(`تم شراء ${amount} من ${itemName}`);
-        }
-
-        if (message.startsWith('!بيع ')) {
-            const parts = message.split(' ');
-            const itemName = parts[1];
-            const amount = parseInt(parts[2]) || 1;
-            runCmd(`clear ${player} ${itemName} 0 ${amount}`);
-            runCmd(`give ${player} paper ${amount}`);
-            sendChat(`تم بيع ${amount} من ${itemName}`);
-        }
-
-    } catch (err) {
-        console.log("Error inside text event: " + err.message);
-    }
-});
-                     `!سر_الاختفاء\n` +
-                     `!سر_العتاد\n` +
-                     `!day (نهار)`);
-            return;
-        }
-
-        if (message === '!shop' || message === 'المتجر') {
-            sendChat(`=== متجر السيرفر ===\n` +
-                     `اكتب (!شراء [الاسم] [العدد]) للشراء\n` +
-                     `اكتب (!بيع [الاسم] [العدد]) للبيع\n` +
-                     `اكتب (كلمات السر) لعرض الأوامر!`);
-            return;
-        }
-
-        // 2. الأوامر
-        if (message === '!day') {
-            runCmd(`time set day`);
-            sendChat(`تم تحويل الوقت الى النهار يا ${player}`);
-        }
-
-        if (message === '!سر_القوة' || message === '!god') {
-            runCmd(`effect ${player} regeneration 99999 5 true`);
-            runCmd(`effect ${player} resistance 99999 5 true`);
-            sendChat(`تم تفعيل وضع الخلود للاعب: ${player}`);
-        }
-
-        if (message === '!سر_الطيران' || message === '!fly') {
-            runCmd(`gamemode creative ${player}`);
-            sendChat(`تم تحويل طور اللاعب ${player} الى الابداع`);
-        }
-
-        if (message === '!سر_النجاة' || message === '!survival') {
-            runCmd(`gamemode survival ${player}`);
-            sendChat(`تم تحويل اللاعب ${player} الى السرفايفل`);
-        }
-
-        if (message === '!سر_الخبرة' || message === '!xp') {
-            runCmd(`xp 1000l ${player}`);
-            sendChat(`تم منح ${player} ليفل خبرة`);
-        }
-
-        if (message === '!سر_الوحوش' || message === '!killall') {
-            runCmd(`kill @e[type=!player,type=!item,type=!npc]`);
-            sendChat(`تم القضاء على جميع الوحوش`);
-        }
-
-        if (message === '!سر_الفلوس' || message === '!money') {
-            runCmd(`give ${player} paper 64`);
-            sendChat(`استلمت 64 ورقة نقدية يا ${player}`);
-        }
-
-        if (message === '!سر_الاختفاء' || message === '!invisible') {
-            runCmd(`effect ${player} invisibility 99999 1 true`);
-            sendChat(`أصبحت خفياً يا ${player}`);
-        }
-
-        if (message === '!سر_العتاد' || message === '!kit') {
-            runCmd(`give ${player} diamond_sword 1`);
-            runCmd(`give ${player} diamond_pickaxe 1`);
-            sendChat(`تم تسليم العتاد للاعب ${player}`);
-        }
-
-        // التجارة
-        if (message.startsWith('!شراء ')) {
-            const parts = message.split(' ');
-            const itemName = parts[1];
-            const amount = parseInt(parts[2]) || 1;
-            runCmd(`give ${player} ${itemName} ${amount}`);
-            sendChat(`تم شراء ${amount} من ${itemName}`);
-        }
-
-        if (message.startsWith('!بيع ')) {
-            const parts = message.split(' ');
-            const itemName = parts[1];
-            const amount = parseInt(parts[2]) || 1;
-            runCmd(`clear ${player} ${itemName} 0 ${amount}`);
-            runCmd(`give ${player} paper ${amount}`);
-            sendChat(`تم بيع ${amount} من ${itemName}`);
-        }
-
-    } catch (err) {
-        console.log("Error inside text event: " + err.message);
-    }
-});
 
         // 2. الأوامر
         if (message === '!day') {
