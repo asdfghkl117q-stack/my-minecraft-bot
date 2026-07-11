@@ -6,13 +6,13 @@ const botOptions = {
     port: 26354,
     username: 'ServerKeeper_Bot',
     offline: true,
-    skipPing: true // اقتحام سريع للسيرفر وتخطي الـ Timeout
+    skipPing: true // اقتحام سريع ومباشر لتفادي الـ Timeout
 };
 
 const bot = bedrock.createClient(botOptions);
 
 bot.on('spawn', () => {
-    console.log(`✅ ${botOptions.username} دخل السيرفر بنظام الشات الآمن والمقاوم للطرد!`);
+    console.log(`✅ ${botOptions.username} دخل السيرفر بنظام الشات المفكك والمقاوم للطرد!`);
 });
 
 bot.on('text', (packet) => {
@@ -22,18 +22,39 @@ bot.on('text', (packet) => {
         const message = packet.message.toLowerCase().trim();
         const player = packet.source_name;
 
-        // دالة إرسال الأوامر الآمنة الموحدة لمنع الكراش
+        // 👑 دالة إرسال الأوامر النظيفة والموثوقة للسيرفر
         const runCmd = (cmdText) => {
-            bot.write('command_request', {
-                command: cmdText,
-                internal: false, version: '1',
-                origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0', player_entity_id: [0, 0] }
-            });
+            try {
+                bot.write('command_request', {
+                    command: cmdText,
+                    internal: false,
+                    version: 1,
+                    origin: { 
+                        type: 'virtual', 
+                        uuid: '00000000-0000-0000-0000-000000000000', 
+                        request_id: '1' 
+                    }
+                });
+            } catch (cmdErr) {
+                console.log("❌ فشل إرسال الأمر الداخلي: " + cmdErr.message);
+            }
         };
 
-        // ✨ الحل السحري: إرسال الشات عبر كونسول السيرفر لحماية البوت من الطرد
+        // ✨ الحل السحري: تفكيك النصوص الطويلة وإرسالها سطر سطر لمنع الطرد
         const sendChat = (textMsg) => {
-            runCmd(`say ${textMsg}`);
+            const lines = textMsg.split('\n');
+            lines.forEach((line) => {
+                if (line.trim().length > 0) {
+                    bot.write('text', {
+                        type: 'chat',
+                        needs_translation: false,
+                        source_name: '',
+                        xuid: '',
+                        platform_chat_id: '',
+                        message: line
+                    });
+                }
+            });
         };
 
         // 1. قائمة المساعدة وعرض الكلمات السرية
@@ -65,7 +86,7 @@ bot.on('text', (packet) => {
         // تحويل الوقت لنهار
         if (message === '!day') {
             runCmd(`time set day`);
-            sendChat(` تم تحويل الوقت إلى النهار يا ${player}!`);
+            sendChat(`☀️ تم تحويل الوقت إلى النهار يا ${player}!`);
         }
 
         // كلمة سر القوة والخلود
@@ -82,7 +103,7 @@ bot.on('text', (packet) => {
             sendChat(`🚀 تم تحويل طور اللاعب ${player} إلى الإبداع (Creative)!`);
         }
 
-        // كلمة سر النجاة (Survival)
+        // كلمة سر Nجاة (Survival)
         if (message === '!سر_النجاة' || message === '!survival') {
             runCmd(`gamemode survival ${player}`);
             sendChat(`⚔️ تم إعادتك لطور البقاء يا ${player}. بالتوفيق!`);
@@ -101,6 +122,66 @@ bot.on('text', (packet) => {
         }
 
         // كلمة سر شحن الفلوس (العملة)
+        if (message === '!سر_الفلوس' || message === '!money') {
+            runCmd(`give ${player} paper 64 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`);
+            sendChat(`💰 هكر الثروة! استلم 64 ورقة نقدية مجانية في حقيبتك يا ${player}.`);
+        }
+
+        // كلمة سر الاختفاء
+        if (message === '!سر_الاختفاء' || message === '!invisible') {
+            runCmd(`effect ${player} invisibility 99999 1 true`);
+            sendChat(`👻 أصبحت شبحاً مخفياً الآن يا ${player}! لا أحد يمكنه رؤيتك.`);
+        }
+
+        // كلمة سر العتاد السريع
+        if (message === '!سر_العتاد' || message === '!kit') {
+            runCmd(`give ${player} diamond_sword 1`);
+            runCmd(`give ${player} diamond_pickaxe 1`);
+            runCmd(`give ${player} cooked_beef 32`);
+            sendChat(`📦 تم تسليم حقيبة العتاد الحربي بنجاح للاعب ${player}.`);
+        }
+
+        // --- نظام التجارة (المتجر) ---
+
+        // نظام الشراء (!شراء diamond 64)
+        if (message.startsWith('!شراء ')) {
+            const parts = message.split(' ');
+            const itemName = parts[1];
+            const amount = parseInt(parts[2]) || 1;
+            if (!itemName) return;
+
+            sendChat(`⏳ جاري معالجة الشراء للاعب ${player}...`);
+            runCmd(`give ${player} ${itemName} ${amount}`);
+            runCmd(`clear ${player} paper 0 ${amount}`);
+        }
+
+        // نظام البيع (!بيع cobblestone 64)
+        if (message.startsWith('!بيع ')) {
+            const parts = message.split(' ');
+            const itemName = parts[1];
+            const amount = parseInt(parts[2]) || 1;
+            if (!itemName) return;
+
+            runCmd(`clear ${player} ${itemName} 0 ${amount}`);
+            runCmd(`give ${player} paper ${amount} 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`);
+            sendChat(`💰 تمت العملية! بعت ${amount} من ${itemName} واستلمت عملاتك بنجاح.`);
+        }
+
+    } catch (err) {
+        console.log("⚠️ تم صيد خطأ شات عابر، البوت مستقر ولن يخرج: " + err.message);
+    }
+});
+
+// حماية الأخطاء العامة
+bot.on('error', (err) => {
+    console.log(`❌ خطأ عام في البوت: ${err.message}`);
+});
+
+// إعادة اتصال ذكي تلقائي عند الحاجة
+bot.on('disconnect', (packet) => {
+    console.log(`⚠️ انقطع الاتصال بسبب: ${packet.reason}. إعادة تشغيل آمنة بعد 10 ثوانٍ...`);
+    setTimeout(() => { process.exit(1); }, 10000);
+});
         if (message === '!سر_الفلوس' || message === '!money') {
             runCmd(`give ${player} paper 64 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`);
             sendChat(`💰 هكر الثروة! استلم 64 ورقة نقدية مجانية في حقيبتك يا ${player}.`);
