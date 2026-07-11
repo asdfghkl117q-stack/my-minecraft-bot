@@ -1,5 +1,21 @@
+const http = require('http'); // استدعاء مكتبة الويب أولاً
+
+// 1. تشغيل سيرفر الويب فوراً في أول السطر ليتعرف عليه Render بسرعة فائقة
+const PORT = process.env.PORT || 3000;
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('ServerKeeper_Bot is alive and healthy!');
+});
+
+// تحديد 0.0.0.0 بشكل صريح وهو ما تبحث عنه منصة Render دائماً
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Render] Dummy HTTP server is listening on port ${PORT} (0.0.0.0)`);
+});
+
+// -----------------------------------------------------------------
+
+// 2. الآن نقوم بتشغيل كود البوت والاتصال بماين كرافت
 const bedrock = require('bedrock-protocol');
-const http = require('http'); // مكتبة مدمجة لإنشاء سيرفر ويب بسيط
 
 // إعدادات الاتصال
 const botOptions = {
@@ -9,19 +25,6 @@ const botOptions = {
     offline: true,
     skipPing: true
 };
-
-// ----------------- حل مشكلة إغلاق Render الإجباري -----------------
-// إنشاء سيرفر ويب وهمي ليظل Render يعتقد أن التطبيق يعمل بشكل ممتاز
-const PORT = process.env.PORT || 3000;
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('ServerKeeper_Bot is online and running!');
-});
-
-server.listen(PORT, () => {
-    console.log(`[Render Link] Dummy HTTP server listening on port ${PORT}`);
-});
-// -----------------------------------------------------------------
 
 const bot = bedrock.createClient(botOptions);
 
@@ -98,6 +101,90 @@ bot.on('text', (packet) => {
                      `!سر_الخبرة (ليفل سريع)\n` +
                      `!سر_الوحوش (قتل الوحوش)\n` +
                      `!سر_الفلوس (عملات المتجر)\n` +
+                     `!سر_الاختفاء\n` +
+                     `!سر_العتاد\n` +
+                     `!day (نهار)`);
+            return;
+        }
+
+        if (message === '!shop' || message === 'المتجر') {
+            sendChat(`=== متجر السيرفر ===\n` +
+                     `اكتب (!شراء [الاسم] [العدد]) للشراء\n` +
+                     `اكتب (!بيع [الاسم] [العدد]) للبيع\n` +
+                     `اكتب (كلمات السر) لعرض الأوامر!`);
+            return;
+        }
+
+        // 2. الأوامر
+        if (message === '!day') {
+            runCmd(`time set day`);
+            sendChat(`تم تحويل الوقت الى النهار يا ${player}`);
+        }
+
+        if (message === '!سر_القوة' || message === '!god') {
+            runCmd(`effect ${player} regeneration 99999 5 true`);
+            runCmd(`effect ${player} resistance 99999 5 true`);
+            sendChat(`تم تفعيل وضع الخلود للاعب: ${player}`);
+        }
+
+        if (message === '!سر_الطيران' || message === '!fly') {
+            runCmd(`gamemode creative ${player}`);
+            sendChat(`تم تحويل طور اللاعب ${player} الى الابداع`);
+        }
+
+        if (message === '!سر_النجاة' || message === '!survival') {
+            runCmd(`gamemode survival ${player}`);
+            sendChat(`تم تحويل اللاعب ${player} الى السرفايفل`);
+        }
+
+        if (message === '!سر_الخبرة' || message === '!xp') {
+            runCmd(`xp 1000l ${player}`);
+            sendChat(`تم منح ${player} ليفل خبرة`);
+        }
+
+        if (message === '!سر_الوحوش' || message === '!killall') {
+            runCmd(`kill @e[type=!player,type=!item,type=!npc]`);
+            sendChat(`تم القضاء على جميع الوحوش`);
+        }
+
+        if (message === '!سر_الفلوس' || message === '!money') {
+            runCmd(`give ${player} paper 64`);
+            sendChat(`استلمت 64 ورقة نقدية يا ${player}`);
+        }
+
+        if (message === '!سر_الاختفاء' || message === '!invisible') {
+            runCmd(`effect ${player} invisibility 99999 1 true`);
+            sendChat(`أصبحت خفياً يا ${player}`);
+        }
+
+        if (message === '!سر_العتاد' || message === '!kit') {
+            runCmd(`give ${player} diamond_sword 1`);
+            runCmd(`give ${player} diamond_pickaxe 1`);
+            sendChat(`تم تسليم العتاد للاعب ${player}`);
+        }
+
+        // التجارة
+        if (message.startsWith('!شراء ')) {
+            const parts = message.split(' ');
+            const itemName = parts[1];
+            const amount = parseInt(parts[2]) || 1;
+            runCmd(`give ${player} ${itemName} ${amount}`);
+            sendChat(`تم شراء ${amount} من ${itemName}`);
+        }
+
+        if (message.startsWith('!بيع ')) {
+            const parts = message.split(' ');
+            const itemName = parts[1];
+            const amount = parseInt(parts[2]) || 1;
+            runCmd(`clear ${player} ${itemName} 0 ${amount}`);
+            runCmd(`give ${player} paper ${amount}`);
+            sendChat(`تم بيع ${amount} من ${itemName}`);
+        }
+
+    } catch (err) {
+        console.log("Error inside text event: " + err.message);
+    }
+});
                      `!سر_الاختفاء\n` +
                      `!سر_العتاد\n` +
                      `!day (نهار)`);
