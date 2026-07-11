@@ -21,20 +21,6 @@ function startBot() {
 
     client.on('spawn', () => {
         console.log(`✅ بنجاح! البوت [${botOptions.username}] متصل الآن داخل السيرفر.`); 
-        
-        // ⚙️ ميزة حل مشكلة النوم: يرسل أمر للسيرفر لتخطي الليل بمجرد نوم أي لاعب
-        setTimeout(() => {
-            try {
-                client.write('command_request', {
-                    command: 'gamerule playersSleepingPercentage 0',
-                    origin: { type: 0, uuid: '', request_id: 'sleep_fix' },
-                    internal: false
-                });
-                console.log('🛏️ تم إرسال أمر إصلاح قانون النوم بنجاح! البوت لن يمنعكم من النوم بعد الآن.');
-            } catch (err) {
-                console.error('❌ فشل إرسال أمر النوم تلقائياً:', err.message);
-            }
-        }, 3000); // ينتظر 3 ثوانٍ بعد الدخول للتأكد من استقرار الاتصال
     });
 
     client.on('close', () => {
@@ -47,4 +33,4 @@ function startBot() {
     });
 }
 
-startBot(); 
+startBot();
