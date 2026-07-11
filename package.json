@@ -1,12 +1,12 @@
 {
-  "name": "minecraft-bedrock-bot",
+  "name": "minecraft-bedrock-sleepbot",
   "version": "1.0.0",
-  "description": "24/7 Minecraft Bot",
+  "description": "Smart Bed Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "bedrock-protocol": "^3.28.2"
+    "bedrock-protocol": "^3.55.0"
   }
 }
