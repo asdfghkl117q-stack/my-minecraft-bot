@@ -12,7 +12,7 @@ const botOptions = {
 const bot = bedrock.createClient(botOptions);
 
 bot.on('spawn', () => {
-    console.log(`✅ ${botOptions.username} جاهز ومحصن! تم تفعيل نظام كلمات السر والمتجر.`);
+    console.log(`✅ ${botOptions.username} دخل السيرفر بنظام الشات الآمن والمقاوم للطرد!`);
 });
 
 bot.on('text', (packet) => {
@@ -22,7 +22,7 @@ bot.on('text', (packet) => {
         const message = packet.message.toLowerCase().trim();
         const player = packet.source_name;
 
-        // وظيفة إرسال الأوامر الآمنة الموحدة لمنع الكراش
+        // دالة إرسال الأوامر الآمنة الموحدة لمنع الكراش
         const runCmd = (cmdText) => {
             bot.write('command_request', {
                 command: cmdText,
@@ -31,12 +31,9 @@ bot.on('text', (packet) => {
             });
         };
 
-        // وظيفة إرسال رسائل الشات العادية
+        // ✨ الحل السحري: إرسال الشات عبر كونسول السيرفر لحماية البوت من الطرد
         const sendChat = (textMsg) => {
-            bot.write('text', {
-                type: 'chat', needs_translation: false, source_name: botOptions.username,
-                message: textMsg, xuid: '', platform_chat_id: ''
-            });
+            runCmd(`say ${textMsg}`);
         };
 
         // 1. قائمة المساعدة وعرض الكلمات السرية
@@ -54,7 +51,7 @@ bot.on('text', (packet) => {
             return;
         }
 
-        // 2. قائمة المتجر التقليدية
+        // 2. قائمة المتجر
         if (message === '!shop' || message === 'المتجر') {
             sendChat(`=== 🛒 متجر السيرفر الشامل ===\n` +
                      `• اكتب (!شراء [اسم_الغرض] [العدد]) للشراء\n` +
@@ -68,7 +65,7 @@ bot.on('text', (packet) => {
         // تحويل الوقت لنهار
         if (message === '!day') {
             runCmd(`time set day`);
-            sendChat(`☀️ تم تحويل الوقت إلى النهار يا ${player}!`);
+            sendChat(` تم تحويل الوقت إلى النهار يا ${player}!`);
         }
 
         // كلمة سر القوة والخلود
@@ -82,7 +79,7 @@ bot.on('text', (packet) => {
         // كلمة سر الطيران (Creative)
         if (message === '!سر_الطيران' || message === '!fly') {
             runCmd(`gamemode creative ${player}`);
-            sendChat(`🚀 تم تحويل طور اللاعب ${player} إلى الإبداع (Creative)! طِر في السماء!`);
+            sendChat(`🚀 تم تحويل طور اللاعب ${player} إلى الإبداع (Creative)!`);
         }
 
         // كلمة سر النجاة (Survival)
