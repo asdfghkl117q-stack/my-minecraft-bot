@@ -1,52 +1,36 @@
-const mineflayer = require('mineflayer');
+const bedrock = require('bedrock-protocol'); 
+const http = require('http'); // مكتبة مدمجة لإنشاء سيرفر ويب وهمي
 
-const bot = mineflayer.createBot({
-  host: 'localhost', gold.magmanode.com     // اكتب هنا آيبي السيرفر مالتك
-  port: 25565,       25566     // بورت السيرفر
-  username: 'ServerKeeper_Bot',
-  version: '1.20.1'       // غير النسخة حسب نسخة سيرفرك
-});
+// سيرفر وهمي لإقناع منصة الاستضافة بأن البوت عبارة عن موقع ويب ليظل يعمل 24 ساعة
+http.createServer((req, res) => {
+    res.write("Bot is alive and running!");
+    res.end();
+}).listen(process.env.PORT || 3000);
 
-bot.on('spawn', () => {
-  console.log('🤖 البوت دخل السيرفر وجاهز للعمل!');
-});
+// إعدادات البوت الصحيحة والمعدلة لسيرفرك الحالي 🛠️
+const botOptions = {
+    host: 'gold.magmanode.com',   // تم التعديل للسيرفر الجديد
+    port: 26354,                  // تم التعديل للمنفذ الجديد
+    username: 'ServerKeeper_Bot', 
+    offline: true                 
+};
 
-// هذا الحدث يشتغل كل ما يتحدث الوقت في اللعبة
-bot.on('time', () => {
-  // في ماينكرافت، الليل يبدأ لما يكون الوقت أكبر من 13000 وأقل من 23000
-  const isNight = bot.time.timeOfDay >= 13000 && bot.time.timeOfDay < 23000;
+function startBot() {
+    console.log('جاري محاولة اتصال البوت بالسيرفر الآن...'); 
+    const client = bedrock.createClient(botOptions); 
 
-  // إذا كانت الدنيا ليل والبوت مو نايم حالياً، يروح ينام
-  if (isNight && !bot.isSleeping) {
-    goToSleep();
-  }
-});
+    client.on('spawn', () => {
+        console.log(`✅ بنجاح! البوت [${botOptions.username}] متصل الآن داخل السيرفر ويحميه من النوم.`); 
+    });
 
-async function goToSleep() {
-  // البحث عن أقرب بلوكة سرير في محيط 32 بلوكة حول البوت
-  const bed = bot.findBlock({
-    matching: (block) => block.name.includes('bed'),
-    maxDistance: 32
-  });
+    client.on('close', () => {
+        console.log('⚠️ انقطع اتصال البوت بالسيرفر. جاري إعادة المحاولة تلقائياً بعد 10 ثوانٍ...'); 
+        setTimeout(startBot, 10000); 
+    });
 
-  if (bed) {
-    console.log('🛏️ لقيت سرير! رايح أنام...');
-    try {
-      // أمر النوم يتطلب تمرير بلوكة السرير اللي لقاها البوت
-      await bot.sleep(bed);
-      console.log('😴 البوت نام بنجاح.');
-    } catch (err) {
-      console.log(`❌ ما كدرت أنام بسبب خطأ: ${err.message}`);
-    }
-  } else {
-    // إذا الدنيا ليل وماكو سرير، يطبع تنبيه بالكونسول كل فترة قصيرة
-    if (bot.time.timeOfDay % 1000 === 0) {
-      console.log('🔍 الدنيا ليل بس ماكو أي سرير قريب مني!');
-    }
-  }
+    client.on('error', (err) => {
+        console.error('❌ حدث خطأ في بروتوكول البوت:', err.message); 
+    });
 }
 
-// حدث يشتغل أول ما البوت يكعد من النوم (سواء صار الصبح أو أحد كعده)
-bot.on('wake', () => {
-  console.log('☀️ صباح الخير! البوت كعد من النوم وجاهز يكمل شغل.');
-});
+startBot(); 
