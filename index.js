@@ -11,28 +11,55 @@ const botOptions = {
 
 const bot = bedrock.createClient(botOptions);
 
+// متغير لحفظ الـ runtime_entity_id الخاص بالبوت لمنع طرده عند تنفيذ الأوامر
+let runtimeEntityId = 0;
+
+bot.on('start_game', (packet) => {
+    runtimeEntityId = packet.runtime_entity_id;
+    console.log(`[Status] Game started. Bot Entity ID: ${runtimeEntityId}`);
+});
+
 bot.on('spawn', () => {
     console.log(`[Status] ${botOptions.username} joined the server.`);
 });
 
+// معالجة الأخطاء وحالات الطرد لمنع انهيار السكربت بالكامل
+bot.on('error', (err) => {
+    console.error(`[Error] Connection error:`, err.message);
+});
+
+bot.on('kick', (reason) => {
+    console.warn(`[Kick] Bot was kicked from the server. Reason:`, reason);
+});
+
+bot.on('close', () => {
+    console.log(`[Status] Connection closed.`);
+});
+
 bot.on('text', (packet) => {
     try {
-        if (packet.source_name === botOptions.username) return;
+        // التحقق من وجود الاسم لضمان عدم حدوث خطأ، وتفادي الاستماع لرسائل البوت نفسه
+        if (!packet.source_name || packet.source_name === botOptions.username) return;
 
         const message = packet.message.toLowerCase().trim();
         const player = packet.source_name;
 
-        // تنفيذ الأوامر
+        // تنفيذ الأوامر بشكل متوافق تماماً مع بروتوكول ماين كرافت لتفادي الطرد
         const runCmd = (cmdText) => {
             bot.write('command_request', {
                 command: cmdText,
                 internal: false,
                 version: 1,
-                origin: { type: 'virtual', uuid: '00000000-0000-0000-0000-000000000000', request_id: '1' }
+                origin: { 
+                    type: 'player', // استخدام نوع لاعب حقيقي بدلاً من virtual
+                    uuid: bot.uuid || '00000000-0000-0000-0000-000000000000', 
+                    request_id: '1',
+                    player_entity_id: runtimeEntityId // تمرير معرّف البوت هنا لمنع خروجه
+                }
             });
         };
 
-        // إرسال رسائل بدون رموز لمنع الطرد
+        // إرسال رسائل الشات مع تعيين اسم مرسل صحيح لتفادي حظر السيرفر للبوت
         const sendChat = (textMsg) => {
             const lines = textMsg.split('\n');
             lines.forEach((line) => {
@@ -40,7 +67,7 @@ bot.on('text', (packet) => {
                     bot.write('text', {
                         type: 'chat',
                         needs_translation: false,
-                        source_name: '',
+                        source_name: botOptions.username, // وضع اسم البوت كمرسل للرسالة
                         xuid: '',
                         platform_chat_id: '',
                         message: line
@@ -139,6 +166,6 @@ bot.on('text', (packet) => {
         }
 
     } catch (err) {
-        console.log("Error: " + err.message);
+        console.log("Error inside text event: " + err.message);
     }
 });
