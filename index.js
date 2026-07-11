@@ -1,8 +1,8 @@
 const mineflayer = require('mineflayer');
 
 const bot = mineflayer.createBot({
-  host: 'localhost',      // اكتب هنا آيبي السيرفر مالتك
-  port: 25565,            // بورت السيرفر
+  host: 'localhost', gold.magmanode.com     // اكتب هنا آيبي السيرفر مالتك
+  port: 25565,       25566     // بورت السيرفر
   username: 'ServerKeeper_Bot',
   version: '1.20.1'       // غير النسخة حسب نسخة سيرفرك
 });
