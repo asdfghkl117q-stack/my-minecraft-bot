@@ -5,7 +5,8 @@ const botOptions = {
     host: 'gold.magmanode.com',
     port: 26354,
     username: 'ServerKeeper_Bot',
-    offline: true
+    offline: true,
+    skipPing: true // تخطي الفحص للدخول المباشر السريع
 };
 
 const bot = bedrock.createClient(botOptions);
@@ -13,13 +14,14 @@ const bot = bedrock.createClient(botOptions);
 bot.on('spawn', () => {
     console.log(`✅ ${botOptions.username} دخل السيرفر ورسبن بنجاح!`);
     
-    // ⏳ مؤقت أمان: ننتظر 5 ثوانٍ بعد الدخول قبل تفعيل أمر النوم لمنع الكراش
+    // مؤقت أمان ننتظر 5 ثوانٍ قبل تفعيل أمر النوم
     setTimeout(() => {
         console.log("⚙️ جاري تفعيل قانون النوم التلقائي في السيرفر...");
         try {
             bot.write('command_request', {
                 command: `gamerule playersSleepingPercentage 0`,
-                internal: false, version: 1,
+                internal: false, 
+                version: '1', // ✨ تم تصحيحها إلى نص
                 origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
             });
         } catch (e) {
@@ -38,7 +40,8 @@ bot.on('text', (packet) => {
     if (message === 'نام' || message === '!sleep' || message === 'تخطي') {
         bot.write('command_request', {
             command: `time set day`,
-            internal: false, version: 1,
+            internal: false, 
+            version: '1', // ✨ تم تصحيحها إلى نص
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
@@ -82,13 +85,15 @@ bot.on('text', (packet) => {
 
         bot.write('command_request', {
             command: `give ${player} ${itemName} ${amount}`,
-            internal: false, version: 1,
+            internal: false, 
+            version: '1', // ✨ تم تصحيحها إلى نص
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
 
         bot.write('command_request', {
             command: `clear ${player} paper 0 ${amount}`,
-            internal: false, version: 1,
+            internal: false, 
+            version: '1', // ✨ تم تصحيحها إلى نص
             origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
         });
     }
@@ -98,6 +103,41 @@ bot.on('text', (packet) => {
         const parts = message.split(' ');
         const itemName = parts[1];
         const amount = parseInt(parts[2]) || 1;
+
+        if (!itemName) return;
+
+        bot.write('command_request', {
+            command: `clear ${player} ${itemName} 0 ${amount}`,
+            internal: false, 
+            version: '1', // ✨ تم تصحيحها إلى نص
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+        });
+
+        bot.write('command_request', {
+            command: `give ${player} paper ${amount} 0 {display:{Name:'{"text":"الورقة الخضراء (عملة)"}'}}`,
+            internal: false, 
+            version: '1', // ✨ تم تصحيحها إلى نص
+            origin: { type: 'player', uuid: '00000000-0000-0000-0000-000000000000', request_id: '0' }
+        });
+
+        bot.write('text', {
+            type: 'chat', needs_translation: false, source_name: botOptions.username,
+            message: `💰 تمت العملية يا ${player}! بعت ${amount} من ${itemName} واستلمت عملاتك.`,
+            xuid: '', platform_chat_id: ''
+        });
+    }
+});
+
+// صيد الأخطاء البرمجية وطباعتها لحمايته
+bot.on('error', (err) => {
+    console.log(`❌ حدث خطأ في البوت: ${err.message}`);
+});
+
+// إعادة الاتصال التلقائي
+bot.on('disconnect', (packet) => {
+    console.log(`⚠️ انقطع الاتصال بسبب: ${packet.reason}. إعادة تشغيل...`);
+    setTimeout(() => { process.exit(1); }, 10000);
+});
 
         if (!itemName) return;
 
