@@ -1,173 +1,208 @@
-const bedrock = require('bedrock-protocol'); 
-const http = require('http'); // مكتبة مدمجة لإنشاء سيرفر ويب وهمي
+const bedrock = require('bedrock-protocol');
+const http = require('http');
 
-// سيرفر وهمي لإقناع منصة الاستضافة بأن البوت عبارة عن موقع ويب ليظل يعمل 24 ساعة
-http.createServer((req, res) => {
-    res.write("Bot is alive and running!");
-    res.end();
-}).listen(process.env.PORT || 3000);
+// ─── 1. سيرفر وهمي محسّن لمنع إغلاق الاستضافة ───
+const server = http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end("Bot is alive! Uptime: " + process.uptime() + "s");
+});
 
-// إعدادات البوت الصحيحة والمعدلة لسيرفرك الحالي
+server.listen(process.env.PORT || 3000, () => {
+    console.log('🌐 HTTP Keep-Alive Server running on port', process.env.PORT || 3000);
+});
+
+// ─── 2. إعدادات البوت ───
 const botOptions = {
-    host: 'gold.magmanode.com',   // سيرفرك الحالي
-    port: 26354,                  // المنفذ الحالي
-    username: 'ServerKeeper_Bot', 
+    host: 'gold.magmanode.com',
+    port: 26354,
+    username: 'ServerKeeper_Bot',
     offline: true,
-    skipPing: true                // تخطي الفحص للدخول المباشر السريع ومنع التايم أوت
+    // إضافة timeout أطول لتجنب قطع الاتصال المبكر
+    closeTimeout: 120000 
 };
 
-function startBot() {
-    console.log('جاري محاولة اتصال البوت بالسيرفر الآن...'); 
-    const client = bedrock.createClient(botOptions); 
+let client = null;
+let reconnectTimer = null;
+let afkTimer = null;
+let healthCheckTimer = null;
+let reconnectAttempts = 0;
+let isReconnecting = false;
+let botStartTime = Date.now();
 
-    client.on('spawn', () => {
-        console.log(`✅ بنجاح! البوت [${botOptions.username}] متصل الآن داخل السيرفر.`); 
-    });
+// ─── 3. نظام إعادة الاتصال الذكي (Backoff) ───
+function getReconnectDelay() {
+    // تأخير متزايد: 10s, 20s, 30s, 60s, 120s, ثم ثابت 5 دقائق
+    const delays = [10000, 20000, 30000, 60000, 120000, 300000];
+    return delays[Math.min(reconnectAttempts, delays.length - 1)];
+}
 
-    client.on('text', (packet) => {
-        try {
-            if (packet.source_name === botOptions.username) return;
+function clearAllTimers() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (afkTimer) { clearInterval(afkTimer); afkTimer = null; }
+    if (healthCheckTimer) { clearInterval(healthCheckTimer); healthCheckTimer = null; }
+}
 
-            const message = packet.message.toLowerCase().trim();
-            const player = packet.source_name;
+// ─── 4. إرسال حركة وهمية لمنع AFK Kick ───
+function sendAntiAFK() {
+    if (!client || client.closed) return;
+    
+    try {
+        // إرسال حركة "تلويح باليد" (Swing Arm) كل 45 ثانية
+        // هذا يخدع السيرفر ويجعله يعتقد أن اللاعب نشط
+        client.queue('animate', {
+            action_id: 0, // 0 = Swing Arm
+            runtime_entity_id: client.entity_id || 0
+        });
+        
+        // إرسال إشارة "On Ground" لتأكيد أن البوت موجود
+        client.queue('player_action', {
+            runtime_entity_id: client.entity_id || 0,
+            action: 0, // 0 = Start Destroy Block (harmless)
+            position: { x: 0, y: 0, z: 0 },
+            result_position: { x: 0, y: 0, z: 0 },
+            face: 0
+        });
+        
+        console.log(`🤖 [${new Date().toLocaleTimeString()}] Anti-AFK ping sent.`);
+    } catch (err) {
+        console.error('❌ Anti-AFK error:', err.message);
+    }
+}
 
-            // دالة تشغيل الأوامر بأمان داخل كونسول السيرفر
-            const runCmd = (cmdText) => {
-                client.write('command_request', {
-                    command: cmdText,
-                    internal: false,
-                    version: 1,
-                    origin: { type: 'virtual', uuid: '00000000-0000-0000-0000-000000000000', request_id: '1' }
-                });
-            };
-
-            // دالة إرسال الشات الآمنة (مفككة سطر سطر وخالية من الإيموجي منعا للطرد)
-            const sendChat = (textMsg) => {
-                const lines = textMsg.split('\n');
-                lines.forEach((line) => {
-                    if (line.trim().length > 0) {
-                        client.write('text', {
-                            type: 'chat',
-                            needs_translation: false,
-                            source_name: '',
-                            xuid: '',
-                            platform_chat_id: '',
-                            message: line
-                        });
-                    }
-                });
-            };
-
-            // 1. قائمة كلمات السر الخارقة
-            if (message === 'الاسرار' || message === 'كلمات السر' || message === '!cheats') {
-                sendChat(`=== قائمة كلمات السر ===\n` +
-                         `!سر_القوة (وضع الخلود)\n` +
-                         `!سر_الطيران (طور الكرييتف)\n` +
-                         `!سر_النجاة (طور السرفايفل)\n` +
-                         `!سر_الخبرة (ليفل سريع)\n` +
-                         `!سر_الوحوش (قتل الوحوش)\n` +
-                         `!سر_الفلوس (عملات المتجر)\n` +
-                         `!سر_الاختفاء\n` +
-                         `!سر_العتاد\n` +
-                         `!day (نهار)`);
-                return;
+// ─── 5. فحص صحة الاتصال (Health Check) ───
+function startHealthCheck() {
+    healthCheckTimer = setInterval(() => {
+        if (!client || client.closed) {
+            console.log('⚠️ Health Check: Connection dead, forcing reconnect...');
+            if (!isReconnecting) {
+                clearAllTimers();
+                startBot();
             }
-
-            // 2. قائمة متجر السيرفر
-            if (message === '!shop' || message === 'المتجر') {
-                sendChat(`=== متجر السيرفر ===\n` +
-                         `اكتب (!شراء [الاسم] [العدد]) للشراء\n` +
-                         `اكتب (!بيع [الاسم] [العدد]) للبيع\n` +
-                         `اكتب (كلمات السر) لعرض الاوامر`);
-                return;
-            }
-
-            // --- تفعيل كلمات السر (Cheats) ---
-
-            if (message === '!day') {
-                runCmd(`time set day`);
-                sendChat(`تم تحويل الوقت الى النهار يا ${player}`);
-            }
-
-            if (message === '!سر_القوة' || message === '!god') {
-                runCmd(`effect ${player} regeneration 99999 5 true`);
-                runCmd(`effect ${player} resistance 99999 5 true`);
-                sendChat(`تم تفعيل وضع الخلود للاعب: ${player}`);
-            }
-
-            if (message === '!سر_الطيران' || message === '!fly') {
-                runCmd(`gamemode creative ${player}`);
-                sendChat(`تم تحويل طور اللاعب ${player} الى الابداع`);
-            }
-
-            if (message === '!سر_النجاة' || message === '!survival') {
-                runCmd(`gamemode survival ${player}`);
-                sendChat(`تم تحويل اللاعب ${player} الى السرفايفل`);
-            }
-
-            if (message === '!سر_الخبرة' || message === '!xp') {
-                runCmd(`xp 1000l ${player}`);
-                sendChat(`تم منح ${player} ليفل خبرة`);
-            }
-
-            if (message === '!سر_الوحوش' || message === '!killall') {
-                runCmd(`kill @e[type=!player,type=!item,type=!npc]`);
-                sendChat(`تم القضاء على جميع الوحوش`);
-            }
-
-            if (message === '!سر_الفلوس' || message === '!money') {
-                runCmd(`give ${player} paper 64`);
-                sendChat(`استلمت 64 ورقة نقدية يا ${player}`);
-            }
-
-            if (message === '!سر_الاختفاء' || message === '!invisible') {
-                runCmd(`effect ${player} invisibility 99999 1 true`);
-                sendChat(`اصبحت خفيا يا ${player}`);
-            }
-
-            if (message === '!سر_العتاد' || message === '!kit') {
-                runCmd(`give ${player} diamond_sword 1`);
-                runCmd(`give ${player} diamond_pickaxe 1`);
-                sendChat(`تم تسليم العتاد للاعب ${player}`);
-            }
-
-            // --- نظام الشراء والبيع للمتجر ---
-
-            if (message.startsWith('!شراء ')) {
-                const parts = message.split(' ');
-                const itemName = parts[1];
-                const amount = parseInt(parts[2]) || 1;
-                if (!itemName) return;
-
-                runCmd(`give ${player} ${itemName} ${amount}`);
-                runCmd(`clear ${player} paper 0 ${amount}`);
-                sendChat(`تم شراء ${amount} من ${itemName}`);
-            }
-
-            if (message.startsWith('!بيع ')) {
-                const parts = message.split(' ');
-                const itemName = parts[1];
-                const amount = parseInt(parts[2]) || 1;
-                if (!itemName) return;
-
-                runCmd(`clear ${player} ${itemName} 0 ${amount}`);
-                runCmd(`give ${player} paper ${amount}`);
-                sendChat(`تم بيع ${amount} من ${itemName}`);
-            }
-
-        } catch (err) {
-            console.log("خطأ عابر في الشات تم امتصاصه: " + err.message);
         }
+    }, 60000); // فحص كل دقيقة
+}
+
+// ─── 6. إعادة الاتصال الاحترازية كل 3 ساعات ───
+// هذا يمنع مشاكل الذاكرة والاتصال المعلق (Silent Timeout)
+setInterval(() => {
+    if (client && !client.closed) {
+        console.log('🔄 Proactive reconnect: Restarting connection to prevent silent timeout...');
+        client.close();
+        // سيتم إعادة الاتصال تلقائياً عبر event 'close'
+    }
+}, 3 * 60 * 60 * 1000); // كل 3 ساعات
+
+// ─── 7. دالة بدء البوت الرئيسية ───
+function startBot() {
+    if (isReconnecting) return;
+    isReconnecting = true;
+    
+    clearAllTimers();
+    console.log(`🚀 [Attempt ${reconnectAttempts + 1}] Connecting to ${botOptions.host}:${botOptions.port}...`);
+    
+    try {
+        client = bedrock.createClient(botOptions);
+    } catch (err) {
+        console.error('❌ Failed to create client:', err.message);
+        scheduleReconnect();
+        return;
+    }
+
+    // ─── عند الدخول للسيرفر ───
+    client.on('spawn', () => {
+        console.log(`✅ [${botOptions.username}] Connected successfully!`);
+        reconnectAttempts = 0; // إعادة ضبط المحاولات
+        isReconnecting = false;
+        
+        // بدء Anti-AFK: حركة كل 45 ثانية
+        afkTimer = setInterval(sendAntiAFK, 45000);
+        
+        // بدء فحص الصحة
+        startHealthCheck();
+        
+        // إرسال رسالة تأكيد (اختياري)
+        setTimeout(() => {
+            try {
+                client.queue('text', {
+                    type: 'chat',
+                    needs_translation: false,
+                    source_name: botOptions.username,
+                    xuid: '',
+                    platform_chat_id: '',
+                    filtered_message: '',
+                    message: 'ServerKeeper Bot is online! 🤖'
+                });
+            } catch (e) {
+                // تجاهل خطأ الرسالة
+            }
+        }, 5000);
     });
 
+    // ─── عند الطرد من السيرفر ───
+    client.on('kick', (reason) => {
+        console.log('🚫 Kicked from server:', reason);
+        client.close();
+    });
+
+    // ─── عند انقطاع الاتصال ───
     client.on('close', () => {
-        console.log('⚠️ انقطع اتصال البوت بالسيرفر. جاري إعادة المحاولة تلقائياً بعد 10 ثوانٍ...'); 
-        setTimeout(startBot, 10000); 
+        console.log('🔌 Connection closed.');
+        isReconnecting = false;
+        scheduleReconnect();
     });
 
+    // ─── عند حدوث خطأ ───
     client.on('error', (err) => {
-        console.error('❌ حدث خطأ في بروتوكول البوت:', err.message); 
+        console.error('❌ Protocol error:', err.message);
+        // لا نغلق الاتصال هنا، نترك event 'close' يتولى الأمر
+    });
+
+    // ─── حفظ entity_id عند استلامه ───
+    client.on('add_player', (packet) => {
+        if (packet.username === botOptions.username) {
+            client.entity_id = packet.runtime_entity_id;
+            console.log('🆔 Entity ID acquired:', client.entity_id);
+        }
     });
 }
 
+// ─── 8. جدولة إعادة الاتصال ───
+function scheduleReconnect() {
+    if (isReconnecting) return;
+    isReconnecting = true;
+    reconnectAttempts++;
+    
+    const delay = getReconnectDelay();
+    console.log(`⏳ Reconnecting in ${delay / 1000}s... (Attempt ${reconnectAttempts})`);
+    
+    reconnectTimer = setTimeout(() => {
+        isReconnecting = false;
+        startBot();
+    }, delay);
+}
+
+// ─── 9. إبقاء الـ Process حياً في الاستضافة (Keep Node.js Alive) ───
+setInterval(() => {
+    // هذا يمنع الـ Event Loop من الدخول في Sleep
+    // خاصة في منصات مثل Replit و Render
+    const mem = process.memoryUsage();
+    console.log(`💓 Heartbeat | Memory: ${Math.round(mem.heapUsed / 1024 / 1024)}MB | Uptime: ${Math.floor(process.uptime() / 60)}min`);
+}, 30000);
+
+// ─── 10. التعامل مع إشارات إيقاف الاستضافة ───
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    if (client) client.close();
+    server.close();
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully...');
+    if (client) client.close();
+    server.close();
+    process.exit(0);
+});
+
+// ─── بدء التشغيل ───
 startBot();
